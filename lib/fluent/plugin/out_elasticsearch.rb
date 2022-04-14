@@ -792,6 +792,37 @@ EOC
       header = {}
       meta = {}
 
+      msg_count = 0
+      count_to_emit_nestly_call = 0
+      chunk.msgpack_each do |time, record|
+        next unless record.is_a? Hash
+
+        msg_count += 1
+        log.on_info { log.info "==========> #{msg_count}. time : #{time}, record : #{record}  <==========" }
+
+        record.each_key do |k|
+          # normally, k would only be 'aaa', 'bbb', 'ccc' or 'log_path'
+          if k != 'aaa' && k != 'bbb' && k != 'ccc' && k != 'log_path'
+            # it would be enterd when msg_count == 112. I don't know why
+            log.on_info { log.info "==========> wired record : #{record}  <==========" }
+          end
+        end
+
+        # if comment out the following code, line 807 would never be executed.
+        if msg_count % 55 == 0
+          if count_to_emit_nestly_call == 1
+            begin
+              chunk.msgpack_each do |time, record|
+                raise ArgumentError.new "deliberate exception"
+              end
+            rescue => e
+
+            end
+          end
+          count_to_emit_nestly_call += 1
+        end
+      end
+
       tag = chunk.metadata.tag
       chunk_id = dump_unique_id_hex(chunk.unique_id)
       extracted_values = expand_placeholders(chunk)
